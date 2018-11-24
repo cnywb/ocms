@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans:beans xmlns="http://www.springframework.org/schema/security"
+    xmlns:beans="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.0.xsd
+                        http://www.springframework.org/schema/security http://www.springframework.org/schema/security/spring-security-4.0.xsd">
+           
+
+    <http pattern="/login.jsp*" security="none"/>
+    <http pattern="/wechatDyLogin.htm*" security="none"/>
+    <http pattern="/wechatQyLogin.htm*" security="none"/>
+    <http pattern="/plugin/**" security="none"/>
+    <http pattern="/resources/**" security="none"/>
+    <http pattern="/assets/**" security="none"/>
+    <http use-expressions="true"   entry-point-ref="authenticationProcessingFilterEntryPoint" >
+         <!-- 实现免登陆验证
+        <remember-me /> -->
+       <!--  设置http节点属性 security-context-repository-ref="redisSecurityContextRepository"  可以使用redis来存 SecurityContext注意还要将redis.properties中的redis.status设为on-->
+        
+        <access-denied-handler ref="complexAccessDeniedHandler" />
+       <!--  <custom-filter  ref="concurrentSessionFilter" position="CONCURRENT_SESSION_FILTER"  />  -->
+        <custom-filter ref="logoutFilter" position="LOGOUT_FILTER" />
+       	<custom-filter ref="loginFilter" position="FORM_LOGIN_FILTER"  />
+		<custom-filter ref="securityFilter" before="FILTER_SECURITY_INTERCEPTOR"/>
+		<session-management session-fixation-protection="none"  />
+		<csrf disabled="true"/> <!-- 此处一定要配置否则无法登录处理 -->
+	    <headers><frame-options policy="SAMEORIGIN"/></headers><!-- 此处一定要配置否则无法使用iframe -->
+	</http>
+    
+    
+    
+      <!-- 拒拒访问处理器 -->
+    <beans:bean id="complexAccessDeniedHandler" class="com.ternnetwork.baseframework.security.ComplexAccessDeniedHandler">  
+    	<beans:property name="defaultDesktopDeviceTargetUrl" value="/errors/403.jsp"></beans:property><!--电脑端跳转页面 -->
+	    <beans:property name="defaultMobileDeviceTargetUrl" value="/"></beans:property><!--手机端跳转页面 -->  
+    </beans:bean>
+    
+    
+    <!-- 配置登入页面 -->
+	<beans:bean id="authenticationProcessingFilterEntryPoint" class="com.ternnetwork.baseframework.security.ComplexAuthenticationEntryPoint">
+   		 <beans:constructor-arg  name="desktopDeviceLoginFormUrl" value="/login.jsp"/><!-- 电脑端 -->
+   		  <beans:constructor-arg name="mobileDeviceLoginFormUrl" value="/wechatDyLogin.htm"/><!-- 移动端 -->
+   		 <beans:property name="forceHttps" value="false"/>
+	</beans:bean>
+	
+      <!-- 会话注册管理 -->
+    <beans:bean id="sessionRegistry" class="org.springframework.security.core.session.SessionRegistryImpl" />
+ 
+    <!-- 会话过滤器 
+   <beans:bean id="concurrentSessionFilter"  class="com.ternnetwork.baseframework.security.ComplexConcurrentSessionFilter">  
+        <beans:constructor-arg name="sessionRegistry" ref="sessionRegistry" />    
+        <beans:constructor-arg name="desktopDeviceExpiredUrl" value="/login.jsp" /> 
+        <beans:constructor-arg name="mobileDeviceExpiredUrl" value="/login.jsp" />
+   </beans:bean>-->
+   
+       <!-- 登录验证器 -->
+    <beans:bean id="loginFilter" class="com.ternnetwork.baseframework.security.MyUsernamePasswordAuthenticationFilter">
+		<beans:property name="sessionAuthenticationStrategy" ref="sas"/><!--此配置可实现获取所有登录用户信息 -->
+ 		<beans:property name="authenticationSuccessHandler" ref="complexAuthenticationSuccessHandler" />
+		<beans:property name="authenticationFailureHandler" ref="complexAuthenticationFailureHandler" />
+		<beans:property name="authenticationManager" ref="myAuthenticationManager" />
+	</beans:bean>
+	
+	<!-- 登录成功处理器 -->
+	<beans:bean id="complexAuthenticationSuccessHandler" class="com.ternnetwork.baseframework.security.ComplexAuthenticationSuccessHandler">
+		<beans:property name="defaultDesktopDeviceTargetUrl" value="/i/index.htm"></beans:property><!-- 电脑端登录成功跳转页面 -->
+		<beans:property name="defaultMobileDeviceTargetUrl" value="/"></beans:property><!--手机端登录成功跳转页面 -->     
+	</beans:bean>
+	
+	<!-- 登录失败处理器 -->
+	<beans:bean id="complexAuthenticationFailureHandler" class="com.ternnetwork.baseframework.security.ComplexAuthenticationFailureHandler">
+		<beans:property name="defaultDesktopDeviceFailureUrl" value="/login.jsp"></beans:property>
+	    <beans:property name="defaultMobileDeviceFailureUrl" value="/"></beans:property><!--手机端登录失败跳转页面 -->  
+	</beans:bean>
+	
+    <!-- 安全滤器 -->
+    <beans:bean id="securityFilter" class="com.ternnetwork.baseframework.security.MySecurityFilter">
+    	<!-- 认证管理器 -->
+    	<beans:property name="authenticationManager" ref="myAuthenticationManager" />
+    	<!-- 访问决策管理器 -->
+    	<beans:property name="accessDecisionManager" ref="myAccessDecisionManager" />
+    	<!-- 资源与权限对应关系 -->
+    	<beans:property name="securityMetadataSource" ref="mySecurityMetadataSource" />
+    </beans:bean>
+    
+    
+      <!-- 自定义认证管理器，可以加上自己的业务逻辑 -->
+    <authentication-manager alias="myAuthenticationManager">
+       <authentication-provider ref="authenticationProvider" /> 
+    </authentication-manager>
+    <beans:bean id="authenticationProvider" class="com.ternnetwork.baseframework.security.MyDaoAuthenticationProvider">
+    <beans:property name="userDetailsService" ref="myUserDetailService"></beans:property>
+    <beans:property name="passwordEncoder" ref="passwordEncoder" ></beans:property>
+    </beans:bean>
+    <beans:bean id="passwordEncoder" class="org.springframework.security.authentication.encoding.ShaPasswordEncoder"/>
+    <beans:bean id="myUserDetailService" class="com.ternnetwork.baseframework.security.MyUserDetailServiceImpl" />
+    
+    
+    
+    <!-- 访问决策管理器 -->
+    <beans:bean id="myAccessDecisionManager" class="com.ternnetwork.baseframework.security.MyAccessDecisionManager"></beans:bean>
+	<beans:bean id="mySecurityMetadataSource" class="com.ternnetwork.baseframework.security.MySecurityMetadataSource"></beans:bean>
+     
+    <!-- 会话并发控制 -->
+    <beans:bean id="sas" class="org.springframework.security.web.authentication.session.ConcurrentSessionControlAuthenticationStrategy">  
+    	<beans:constructor-arg name="sessionRegistry" ref="sessionRegistry" />  
+    	<beans:property name="maximumSessions" value="1"/>
+    	<beans:property name="exceptionIfMaximumExceeded" value="true" />  
+    </beans:bean>
+    
+    
+     <!-- 退出成功处理器 -->
+    <beans:bean id="complexLogoutSuccessHandler" class="com.ternnetwork.baseframework.security.ComplexLogoutSuccessHandler">  
+    	<beans:property name="defaultDesktopDeviceTargetUrl" value="/login.jsp"></beans:property><!--电脑端跳转页面 -->
+	    <beans:property name="defaultMobileDeviceTargetUrl" value="/"></beans:property><!--手机端跳转页面 -->  
+    </beans:bean>
+    
+    <!-- 退出请求过滤器 -->
+    <beans:bean id="logoutFilter" class="org.springframework.security.web.authentication.logout.LogoutFilter">
+       <beans:constructor-arg index="0"  ref="complexLogoutSuccessHandler" />
+         <beans:constructor-arg index="1">
+             <beans:array>
+             <beans:bean id="securityContextLogoutHandler" class="org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler" />
+             </beans:array>
+        </beans:constructor-arg>
+     </beans:bean> 
+     
+    
+  
+</beans:beans>

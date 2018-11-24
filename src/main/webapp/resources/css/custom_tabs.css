@@ -1,0 +1,22 @@
+.close-tab {
+	top: 1px;
+display: inline-block;
+font-family: "Glyphicons Halflings";
+font-style: normal;
+font-weight: 400;
+line-height: 1;
+-moz-osx-font-smoothing: grayscale;
+    font-size: 10px;
+    position:absolute;
+    right: 5px;
+    top: 5px;
+    padding-left: 25px;
+    z-index: 100;
+    cursor: hand;
+    cursor: pointer;
+    color: #94A6B0;
+}
+
+.topbar-collapse {
+    float:right;
+}
